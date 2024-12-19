@@ -3,14 +3,15 @@ import { useContext, useEffect, useState } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { AuthContext } from '../providers/AuthProvider'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import axios from 'axios'
-import { format } from 'date-fns'
+import { compareAsc, format } from 'date-fns'
+import toast from 'react-hot-toast'
 
 const JobDetails = () => {
   const [startDate, setStartDate] = useState(new Date())
-
-  const { user } = useContext(AuthContext)
+  const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
   const [job, setJob] = useState([]);
   const { id } = useParams()
 
@@ -23,28 +24,78 @@ const JobDetails = () => {
     setJob(data);
   }
 
+  const { _id, title, deadline, category, min_price, max_price, description, buyer } = job
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const form = e.target
+    const price = form.price.value
+    const email = user?.email
+    const comment = form.comment.value
+    const jobId = _id
+
+    if (user?.email === buyer?.email) {
+      return toast.error("Action not permitted");
+    }
+
+    if (compareAsc(new Date(), new Date(deadline)) === 1)
+      return toast.error("deadline over,bidding forbidden");
+
+
+    if (price > max_price)
+      return toast.error('Your bid price exceed the max_price');
+
+
+    if (compareAsc(new Date(startDate), new Date(deadline)) === 1)
+      return toast.error("offer a date within deadline");
+
+
+    const bidData = {
+      price,
+      email,
+      comment,
+      deadline: startDate,
+      jobId,
+      title,
+      category,
+      status: 'Pending',
+      buyer: buyer?.email,
+    };
+    try {
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/add-bid`, bidData)
+      form.reset()
+      toast.success('Bid Successfully');
+      navigate("/my-bids")
+    } catch (err) {
+      console.log(err);
+      toast.error(err.response.data);
+
+    }
+  }
+
   return (
     <div className='flex flex-col md:flex-row justify-around gap-5  items-center min-h-[calc(100vh-306px)] md:max-w-screen-xl mx-auto '>
       {/* Job Details */}
       <div className='flex-1  px-4 py-7 bg-white rounded-md shadow-md md:min-h-[350px]'>
         <div className='flex items-center justify-between'>
-          {job.deadline && (
+          {deadline && (
             <span className='text-sm font-light text-gray-800 '>
-              Deadline: {format(new Date(job.deadline), 'P')}
+              Deadline: {format(new Date(deadline), 'P')}
             </span>
           )}
           <span className='px-4 py-1 text-xs text-blue-800 uppercase bg-blue-200 rounded-full '>
-            {job.category}
+            {category}
           </span>
         </div>
 
         <div>
           <h1 className='mt-2 text-3xl font-semibold text-gray-800 '>
-            {job.title}
+            {title}
           </h1>
 
           <p className='mt-2 text-lg text-gray-600 '>
-            {job.description}
+            {description}
           </p>
           <p className='mt-6 text-sm font-bold text-gray-600 '>
             Buyer Details:
@@ -52,21 +103,21 @@ const JobDetails = () => {
           <div className='flex items-center gap-5'>
             <div>
               <p className='mt-2 text-sm  text-gray-600 '>
-                Name: {job.buyer?.name}
+                Name: {buyer?.name}
               </p>
               <p className='mt-2 text-sm  text-gray-600 '>
-                Email: {job.buyer?.email}
+                Email: {buyer?.email}
               </p>
             </div>
             <div className='rounded-full object-cover overflow-hidden w-14 h-14'>
-              <img
-                src={job.buyer?.photoURL}
+              <img referrerPolicy='no-referrer'
+                src={buyer?.photo}
                 alt=''
               />
             </div>
           </div>
           <p className='mt-6 text-lg font-bold text-gray-600 '>
-            Range: ${job.min_price} - ${job.max_price}
+            Range: ${min_price} - ${max_price}
           </p>
         </div>
       </div>
@@ -76,7 +127,7 @@ const JobDetails = () => {
           Place A Bid
         </h2>
 
-        <form>
+        <form onSubmit={handleSubmit}>
           <div className='grid grid-cols-1 gap-6 mt-4 sm:grid-cols-2'>
             <div>
               <label className='text-gray-700 ' htmlFor='price'>
@@ -99,6 +150,8 @@ const JobDetails = () => {
                 id='emailAddress'
                 type='email'
                 name='email'
+                defaultValue={user.email}
+                readOnly
                 disabled
                 className='block w-full px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-200 rounded-md   focus:border-blue-400 focus:ring-blue-300 focus:ring-opacity-40  focus:outline-none focus:ring'
               />
