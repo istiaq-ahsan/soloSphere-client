@@ -2,9 +2,10 @@ import { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../providers/AuthProvider";
 import axios from "axios";
 import BidReqTable from "../components/BidReqTable";
+import UseAxiosSecure from "../hooks/UseAxiosSecure";
 
 const BidRequests = () => {
-
+  const axiosSecure = UseAxiosSecure();
   const [bids, setBids] = useState([]);
   const { user } = useContext(AuthContext);
 
@@ -13,7 +14,7 @@ const BidRequests = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
   const fetchAllBids = async () => {
-    const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/bid-requests/${user?.email}`)
+    const { data } = await axiosSecure.get(`/bids/${user?.email}?buyer=true`)
     setBids(data);
   }
 

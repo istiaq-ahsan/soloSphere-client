@@ -2,9 +2,10 @@ import { useContext, useEffect, useState } from "react";
 import { AuthContext } from '../providers/AuthProvider'
 import axios from "axios";
 import BidTableRow from "../components/BidTableRow";
+import UseAxiosSecure from "../hooks/UseAxiosSecure";
 
 const MyBids = () => {
-
+  const axiosSecure = UseAxiosSecure();
   const [bids, setBids] = useState([]);
   const { user } = useContext(AuthContext);
 
@@ -13,12 +14,24 @@ const MyBids = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
   const fetchAllBids = async () => {
-    const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/bids/${user?.email}`)
+    const { data } = await axiosSecure.get(`/bids/${user?.email}`)
     setBids(data);
   }
 
   const handleStatusChange = async (id, prevStatus, status) => {
+    if (prevStatus !== 'In Progress') return console.log('not allowed');
 
+    try {
+      const data = await axios.patch(
+        `${import.meta.env.VITE_API_URL}/bid-status-update/${id}`,
+        { status })
+
+      console.log(data);
+      fetchAllBids()
+    }
+    catch (err) {
+      console.log(err.message);
+    }
   }
 
   return (
